@@ -1,0 +1,4 @@
+flask
+posthog
+
+pip install -r requirements.txt
