@@ -16,3 +16,13 @@ Backend: Python, Flask
 Frontend: HTML, CSS, Jinja2 templates
 Database: SQLite
 Analytics: PostHog
+
+
+# Team
+
+| Name | Role |
+|------|------|
+|------|------|
+|------|------|
+|------|------|
+| Natalie Kapanowski | Backend & Frontend |
