@@ -23,6 +23,6 @@ Analytics: PostHog
 | Name | Role |
 |------|------|
 |------|------|
-|------|------|
+| Zachary Simon | QA tester & Researcher |
 |------|------|
 | Natalie Kapanowski | Backend & Frontend |
