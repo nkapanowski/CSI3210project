@@ -1,40 +1,90 @@
+/*first change: bold font */
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap');
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-body   { font-family: system-ui, sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.6; }
+/*second change: colors for card table*/
+:root {
+  --bg:        #0f172a;
+  --surface:   #1e293b;
+  --border:    #334155;
+  --text:      #f1f5f9;
+  --muted:     #94a3b8;
+  --gold:      #f5b301;
+  --gold-dark: #d99a00;
+}
 
-header { background: #1e293b; color: #f8fafc; padding: 0.9rem 2rem;
-         display: flex; justify-content: space-between; align-items: center; }
-header a { color: #94a3b8; text-decoration: none; font-size: 0.85rem; }
-header a:hover { color: #f8fafc; }
 
-nav { display: flex; gap: 1.5rem; }
+body   { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
 
-main { max-width: 860px; margin: 2.5rem auto; padding: 0 1.5rem; }
+header { background: var(--surface); color: var(--text); padding: 1rem 2rem;
+         display: flex; justify-content: space-between; align-items: center;
+         border-bottom: 3px solid var(--gold); position: sticky; top: 0; z-index: 10; }
+header a { color: var(--muted); text-decoration: none; font-size: 0.95rem; font-weight: 500; }
+header a:hover { color: var(--gold); }
 
-h1 { font-size: 1.6rem; margin-bottom: 0.5rem; }
-h2 { font-size: 1.2rem; color: #475569; margin-bottom: 1rem; font-weight: 500; }
+.logo { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 1px; color: var(--gold) !important; }
 
-.card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
-        padding: 1.5rem; margin-bottom: 1rem; }
+nav { display: flex; gap: 2rem; }
 
-.btn { display: inline-block; padding: 0.65rem 1.4rem; border-radius: 6px;
-       font-size: 0.95rem; font-weight: 600; cursor: pointer; text-decoration: none;
+/*third change: main content styling */
+main { max-width: 1100px; margin: 3rem auto; padding: 0 2rem; }
+
+h1 { font-family: 'Bebas Neue', sans-serif; font-size: 3.5rem; letter-spacing: 1px; line-height: 1.1; margin-bottom: 0.75rem; }
+h2 { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 0.5px; color: var(--text); margin-bottom: 1.25rem; font-weight: 400; }
+
+/*fourth change: card styling */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+        padding: 1.5rem; margin-bottom: 1rem; transition: transform 0.15s, border-color 0.15s; }
+.card:hover { transform: translateY(-4px); border-color: var(--gold); }
+
+.btn { display: inline-block; padding: 0.75rem 1.6rem; border-radius: 8px;
+       font-size: 1rem; font-weight: 700; cursor: pointer; text-decoration: none;
        border: none; min-width: 44px; min-height: 44px; }
-.btn-primary  { background: #2563eb; color: #fff; }
-.btn-primary:hover { background: #1d4ed8; }
-.btn-secondary { background: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; }
-.btn-secondary:hover { background: #e2e8f0; }
+.btn-primary  { background: var(--gold); color: #0f172a; }
+.btn-primary:hover { background: var(--gold-dark); }
+.btn-secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { border-color: var(--gold); color: var(--gold); }
 
 .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 4px;
-         font-size: 0.78rem; font-weight: 600; background: #dbeafe; color: #1d4ed8; }
+         font-size: 0.78rem; font-weight: 600; background: rgba(245, 179, 1, 0.15); color: var(--gold); }
 
-.uid { font-size: 0.72rem; color: #94a3b8; margin-top: 0.3rem; }
+.uid { font-size: 0.72rem; color: var(--muted); margin-top: 0.3rem; }
 
 .step-bar { display: flex; gap: 0; margin-bottom: 2rem; }
 .step-bar span { flex: 1; padding: 0.4rem 0.8rem; font-size: 0.78rem; font-weight: 600;
-                 background: #e2e8f0; color: #64748b; text-align: center;
-                 border-right: 2px solid #f8fafc; }
-.step-bar span.active { background: #2563eb; color: #fff; }
+                 background: var(--surface); color: var(--muted); text-align: center;
+                 border-right: 2px solid var(--bg); }
+.step-bar span.active { background: var(--gold); color: #0f172a; }
 .step-bar span.done   { background: #16a34a; color: #fff; }
 
-footer { text-align: center; padding: 2rem; font-size: 0.78rem; color: #94a3b8; margin-top: 3rem; }
+footer { text-align: center; padding: 2rem; font-size: 0.85rem; color: var(--muted);
+         margin-top: 4rem; border-top: 1px solid var(--border); }
+
+/*welcome section*/
+.hero { text-align: center; padding: 3rem 1rem 4rem; }
+.hero p { color: var(--muted); font-size: 1.2rem; margin-bottom: 2rem; }
+
+/*search bar*/
+.search { display: flex; max-width: 560px; margin: 0 auto; gap: 0.5rem; }
+.search input { flex: 1; padding: 0.85rem 1.1rem; font-size: 1rem; border-radius: 8px;
+                border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+.search input:focus { outline: none; border-color: var(--gold); }
+
+/*category tiles (4 choices only: Hick's Law)*/
+.category-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; }
+.category-tile { display: flex; align-items: center; justify-content: center; height: 140px;
+                 border-radius: 12px; background: var(--surface); border: 1px solid var(--border);
+                 font-family: 'Bebas Neue', sans-serif; font-size: 1.9rem; letter-spacing: 1px;
+                 color: var(--text); text-decoration: none; transition: transform 0.15s, border-color 0.15s; }
+.category-tile:hover { transform: translateY(-4px); border-color: var(--gold); color: var(--gold); }
+
+/* phone-size screens */
+@media (max-width: 700px) {
+  header { flex-direction: column; gap: 0.75rem; }
+  nav { gap: 1rem; flex-wrap: wrap; justify-content: center; }
+  h1 { font-size: 2.5rem; }
+  .category-grid { grid-template-columns: repeat(2, 1fr); }
+  .search { flex-direction: column; }   
+}
+  

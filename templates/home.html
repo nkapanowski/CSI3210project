@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="hero">
+  <h1>Welcome to TopDeck</h1>
+  <p>Rate every card, from Charizard to Mickey Mantle.</p>
+  <form action="#" method="get" class="search">
+    <input type="text" name="q" placeholder="Search any card...">
+    <button type="submit" class="btn btn-primary">Search</button>
+  </form>
+</section>
+
+<section class="categories">
+  <h2>Browse by category</h2>
+  <div class="category-grid">
+    <a href="#" class="category-tile">Magic</a>
+    <a href="#" class="category-tile">Pokémon</a>
+    <a href="#" class="category-tile">Sports</a>
+    <a href="#" class="category-tile">Other</a>
+  </div>
+</section>
+{% endblock %}
