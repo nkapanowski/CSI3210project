@@ -1,0 +1,40 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body   { font-family: system-ui, sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.6; }
+
+header { background: #1e293b; color: #f8fafc; padding: 0.9rem 2rem;
+         display: flex; justify-content: space-between; align-items: center; }
+header a { color: #94a3b8; text-decoration: none; font-size: 0.85rem; }
+header a:hover { color: #f8fafc; }
+
+nav { display: flex; gap: 1.5rem; }
+
+main { max-width: 860px; margin: 2.5rem auto; padding: 0 1.5rem; }
+
+h1 { font-size: 1.6rem; margin-bottom: 0.5rem; }
+h2 { font-size: 1.2rem; color: #475569; margin-bottom: 1rem; font-weight: 500; }
+
+.card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
+        padding: 1.5rem; margin-bottom: 1rem; }
+
+.btn { display: inline-block; padding: 0.65rem 1.4rem; border-radius: 6px;
+       font-size: 0.95rem; font-weight: 600; cursor: pointer; text-decoration: none;
+       border: none; min-width: 44px; min-height: 44px; }
+.btn-primary  { background: #2563eb; color: #fff; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-secondary { background: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; }
+.btn-secondary:hover { background: #e2e8f0; }
+
+.badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 4px;
+         font-size: 0.78rem; font-weight: 600; background: #dbeafe; color: #1d4ed8; }
+
+.uid { font-size: 0.72rem; color: #94a3b8; margin-top: 0.3rem; }
+
+.step-bar { display: flex; gap: 0; margin-bottom: 2rem; }
+.step-bar span { flex: 1; padding: 0.4rem 0.8rem; font-size: 0.78rem; font-weight: 600;
+                 background: #e2e8f0; color: #64748b; text-align: center;
+                 border-right: 2px solid #f8fafc; }
+.step-bar span.active { background: #2563eb; color: #fff; }
+.step-bar span.done   { background: #16a34a; color: #fff; }
+
+footer { text-align: center; padding: 2rem; font-size: 0.78rem; color: #94a3b8; margin-top: 3rem; }
