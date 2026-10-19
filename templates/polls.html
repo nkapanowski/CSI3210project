@@ -1,0 +1,82 @@
+<!-- polls page: vote in each poll, then see the results -->
+{% extends 'global.html' %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='polls.css') }}">
+{% endblock %}
+
+{% block title %}Polls · TopDeck{% endblock %}
+
+{% block content %}
+<h1>Polls</h1>
+<p class="card-meta">Pick your favorite in each poll to see what the community thinks.</p>
+
+{% if not polls %}
+  <p class="empty">No polls are running right now. Check back soon!</p>
+{% endif %}
+
+<div class="poll-list">
+{% for poll in polls %}
+  <section class="poll card" id="poll-{{ poll.id }}">
+
+    <h2>{{ poll.question }}</h2>
+    <p class="card-meta">{{ poll.total }} vote{{ 's' if poll.total != 1 }} so far</p>
+
+    <!-- card id the user voted for, or None -->
+    {% set my_vote = my_votes.get(poll.id) %}
+
+    {% if my_vote %}
+      <!-- already voted, show the results -->
+      <div class="poll-results">
+        {% for opt in poll.options %}
+          <div class="poll-row {% if opt.card.id == my_vote %}mine{% endif %}">
+
+            <div class="poll-label">
+              <a href="{{ url_for('cards.card', card_id=opt.card.id) }}">{{ opt.card.name }}</a>
+              <span>{{ opt.percent }}%{% if opt.card.id == my_vote %} · your vote{% endif %}</span>
+            </div>
+
+            <!-- bar width is the vote percent -->
+            <div class="poll-bar">
+              <div style="width: {{ opt.percent }}%"></div>
+            </div>
+
+          </div>
+        {% endfor %}
+      </div>
+
+    {% else %}
+      <!-- not voted yet, show the choices -->
+      <form method="post" class="poll-form">
+        <input type="hidden" name="poll_id" value="{{ poll.id }}">
+
+        <div class="poll-choices">
+          {% for opt in poll.options %}
+            <label class="poll-choice">
+              <input type="radio" name="card_id" value="{{ opt.card.id }}" required>
+
+              <!-- card image, or its first letter if there isn't one -->
+              {% if opt.card.image_url %}
+                <img class="card-img" src="{{ opt.card.image_url }}" alt="{{ opt.card.name }}" loading="lazy">
+              {% else %}
+                <div class="card-art">{{ opt.card.name[0] }}</div>
+              {% endif %}
+
+              <span>{{ opt.card.name }}</span>
+            </label>
+          {% endfor %}
+        </div>
+
+        {# only signed-in users can vote #}
+        {% if current_user %}
+          <button type="submit" class="btn btn-primary">Vote</button>
+        {% else %}
+          <a href="{{ url_for('auth.signin', next=request.full_path) }}" class="btn btn-primary signin-link">Sign in to vote</a>
+        {% endif %}
+      </form>
+    {% endif %}
+
+  </section>
+{% endfor %}
+</div>
+{% endblock %}
