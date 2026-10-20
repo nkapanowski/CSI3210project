@@ -1,22 +1,28 @@
 {% extends 'global.html' %}
+<!-- home page, search bar and category tiles -->
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='home.css') }}">
+{% endblock %}
 
 {% block content %}
+<!-- search bar, results show on the browse page -->
 <section class="hero">
   <h1>Welcome to TopDeck</h1>
   <p>Rate every card, from Charizard to Mickey Mantle.</p>
-  <form action="#" method="get" class="search">
-    <input type="text" name="q" placeholder="Search any card...">
+  <form action="{{ url_for('pages.browse') }}" method="get" class="search">
+    <input type="text" name="q" placeholder="Search a card, or describe what you want..." required>
     <button type="submit" class="btn btn-primary">Search</button>
   </form>
 </section>
 
+<!-- one tile per category, each opens browse filtered to it -->
 <section class="categories">
   <h2>Browse by category</h2>
   <div class="category-grid">
-    <a href="#" class="category-tile">Magic</a>
-    <a href="#" class="category-tile">Pokémon</a>
-    <a href="#" class="category-tile">Sports</a>
-    <a href="#" class="category-tile">Other</a>
+    {% for cat in categories %}
+      <a href="{{ url_for('pages.browse', category=cat) }}" class="category-tile">{{ cat }}</a>
+    {% endfor %}
   </div>
 </section>
 {% endblock %}
