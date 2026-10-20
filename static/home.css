@@ -1,0 +1,21 @@
+/* home styles */
+
+/* ===== welcome section ===== */
+
+.hero { text-align: center; padding: 3rem 1rem 4rem; }
+.hero p { color: var(--muted); font-size: 1.2rem; margin-bottom: 2rem; }
+
+
+/* ===== category tiles ===== */
+
+/* only 4 choices (Hick's Law) */
+.category-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; }
+.category-tile { display: flex; align-items: center; justify-content: center; height: 140px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); font-family: 'Bebas Neue', sans-serif; font-size: 1.9rem; letter-spacing: 1px; color: var(--text); text-decoration: none; transition: transform 0.15s, border-color 0.15s; }
+
+/* tile lifts and turns gold on hover */
+.category-tile:hover { transform: translateY(-4px); border-color: var(--gold); color: var(--gold); }
+
+/* 2 tiles per row on phones */
+@media (max-width: 700px) {
+  .category-grid { grid-template-columns: repeat(2, 1fr); }
+}

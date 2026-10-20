@@ -1,0 +1,44 @@
+/* browse styles */
+
+.search-inline { margin: 1.5rem 0; max-width: 560px; }
+
+
+/* ===== filters ===== */
+
+.filters { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+.filter { padding: 0.4rem 1rem; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); text-decoration: none; font-size: 0.9rem; font-weight: 500; }
+.filter:hover { border-color: var(--gold); color: var(--gold); }
+
+/* the filter you're on */
+.filter.active { background: var(--surface); border-color: var(--gold); color: var(--gold); }
+
+/* sport filters are smaller */
+.sub-filters .filter { font-size: 0.82rem; }
+
+
+/* ===== card grid ===== */
+
+/* as many cards per row as fit */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.25rem; margin-top: 1.5rem; }
+.card-link { display: block; color: var(--text); text-decoration: none; margin-bottom: 0; }
+.card-link h3 { font-size: 1.05rem; margin: 0.75rem 0 0.25rem; }
+
+
+/* ===== AI search ===== */
+
+/* "Claude found these" note and why each card was picked */
+.smart-note { color: var(--muted); margin-top: 1rem; font-size: 0.95rem; }
+.reason { color: var(--muted); font-size: 0.82rem; font-style: italic; margin-top: 0.4rem; }
+
+
+/* ===== suggestions (not on TopDeck yet) ===== */
+
+.suggestions { margin-top: 3rem; }
+
+/* dashed border so they look different from real cards */
+.suggestion { border-style: dashed; display: flex; flex-direction: column; }
+.suggestion h3 { font-size: 1.05rem; margin: 0.75rem 0 0.25rem; }
+
+/* pushes the add button to the bottom of the card */
+.suggestion form, .suggestion .btn-add { margin-top: auto; }
+.btn-add { width: 100%; margin-top: 0.9rem; text-align: center; font-size: 0.9rem; padding: 0.6rem 1rem; }
