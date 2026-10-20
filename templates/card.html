@@ -1,0 +1,159 @@
+{% extends 'global.html' %}
+<!-- one template for two pages: mode == 'add' -> the "Add a card" form (/add), otherwise     -> a card's page (/card/<id>) -->
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='card.css') }}">
+{% endblock %}
+
+{% block title %}{% if mode == 'add' %}Add a Card · TopDeck{% else %}{{ card.name }} · TopDeck{% endif %}{% endblock %}
+
+{% block content %}
+{% if mode == 'add' %}
+
+<!-- add a card form -->
+<div class="form-box">
+  <h1>Add a card</h1>
+  <p class="card-meta">Can't find a card? Add it so the community can rate it.</p>
+
+  <form method="post" class="stack-form">
+    <label>Card name
+      <input type="text" name="name" required>
+    </label>
+
+    <label>Category
+      <select name="category" id="category" required>
+        {% for cat in categories %}
+          <option value="{{ cat }}">{{ cat }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <!-- only shown when Sports is picked -->
+    <label id="sport-field">Sport
+      <select name="subcategory">
+        {% for sport in sports %}
+          <option value="{{ sport }}">{{ sport }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>Set or year
+      <input type="text" name="set_or_year" placeholder="e.g. Base Set (1999)">
+    </label>
+
+    <!-- only signed-in users can add cards -->
+    {% if current_user %}
+      <button type="submit" class="btn btn-primary">Add card</button>
+    {% else %}
+      <a href="{{ url_for('auth.signin', next=request.full_path) }}" class="btn btn-primary signin-link">Sign in to add</a>
+    {% endif %}
+  </form>
+</div>
+
+<script>
+  // only show the Sport dropdown when Sports is picked
+  const category = document.getElementById('category');
+  const sportField = document.getElementById('sport-field');
+
+  function toggleSport() {
+    sportField.style.display = category.value === 'Sports' ? '' : 'none';
+  }
+
+  category.addEventListener('change', toggleSport);
+  toggleSport();
+</script>
+
+{% else %}
+
+<!-- card page -->
+<a href="{{ url_for('pages.browse', category=card.category) }}" class="back">← Back to {{ card.category }}</a>
+
+<div class="card-detail">
+
+  <!-- card image, or its first letter if there isn't one -->
+  {% if card.image_url %}
+    <img class="card-img card-art-large" src="{{ card.image_url }}" alt="{{ card.name }}">
+  {% else %}
+    <div class="card-art card-art-large">{{ card.name[0] }}</div>
+  {% endif %}
+
+  <div class="card-info">
+    <span class="badge">{{ card.subcategory or card.category }}</span>
+    <h1>{{ card.name }}</h1>
+    <p class="card-meta">{{ card.set_or_year }}{% if card.source == 'ai' %} · <span title="Details from AI search, not verified">added by AI search</span>{% endif %}</p>
+
+    {% if not card.in_deck %}
+      <!-- not in the deck yet (opened from a poll), must be added before rating -->
+      <p class="rating rating-large"><span>Not on TopDeck yet</span></p>
+
+      {% if current_user %}
+        <form method="post" action="{{ url_for('cards.add_to_deck', card_id=card.id) }}">
+          <button type="submit" class="btn btn-primary btn-large">+ Add to TopDeck</button>
+        </form>
+      {% else %}
+        <a href="{{ url_for('auth.signin', next=request.full_path) }}" class="btn btn-primary btn-large signin-link">Sign in to add</a>
+      {% endif %}
+
+    {% else %}
+      <!-- show how many others have rated it -->
+      {% if card.rating_count %}
+        <p class="rating rating-large">★ {{ card.avg_rating }}
+          <span>from {{ card.rating_count }} player{{ 's' if card.rating_count != 1 }}</span></p>
+      {% else %}
+        <p class="rating rating-large"><span>No ratings yet. Be the first!</span></p>
+      {% endif %}
+
+      <!-- confirmation after adding or rating -->
+      {% if just_added %}
+        <p class="notice">Added to TopDeck! Be the first to rate it.</p>
+      {% endif %}
+      {% if just_rated %}
+        <p class="notice">Thanks! Your rating was saved.</p>
+      {% endif %}
+
+      {% if current_user %}
+        <form method="post" action="{{ url_for('cards.rate', card_id=card.id) }}" class="rate-form">
+          <p class="card-meta">{% if my_rating %}Your rating: {{ my_rating }} ★. Change it below.{% else %}Your rating:{% endif %}</p>
+
+          <!-- listed 5 to 1, lights up the stars before it -->
+          <div class="stars">
+            {% for n in range(5, 0, -1) %}
+              <input type="radio" id="star{{ n }}" name="stars" value="{{ n }}" {% if my_rating == n %}checked{% endif %} required>
+              <label for="star{{ n }}" title="{{ n }} star{{ 's' if n != 1 }}">★</label>
+            {% endfor %}
+          </div>
+
+          <!-- VON RESTOROFF: the one bright button on the page -->
+          <button type="submit" class="btn btn-primary btn-large">Rate this card</button>
+        </form>
+      {% else %}
+        <a href="{{ url_for('auth.signin', next=request.full_path) }}" class="btn btn-primary btn-large signin-link">Sign in to rate</a>
+      {% endif %}
+    {% endif %}
+
+    <!-- topdeck insight (written by claude) -->
+    <div class="insight">
+      <h2>TopDeck Insight</h2>
+
+      {% if insight %}
+        <p>{{ insight }}</p>
+        <p class="insight-credit">Written by Claude AI. May contain mistakes.</p>
+
+      {% elif insight_error %}
+        <p class="card-meta">Couldn't load an insight right now. Try again in a moment.</p>
+        <form method="post" action="{{ url_for('cards.insight', card_id=card.id) }}">
+          <button type="submit" class="btn btn-secondary">Try again</button>
+        </form>
+
+      {% else %}
+        <p class="card-meta">Curious why this card matters? Get a quick take.</p>
+        <form method="post" action="{{ url_for('cards.insight', card_id=card.id) }}">
+          <button type="submit" class="btn btn-secondary">Get TopDeck Insight</button>
+        </form>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endif %}
+{% endblock %}

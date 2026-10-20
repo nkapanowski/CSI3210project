@@ -1,0 +1,132 @@
+{% extends 'global.html' %}
+<!-- browse page: filters, search results, and AI suggestions -->
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='browse.css') }}">
+{% endblock %}
+
+{% block title %}Browse · TopDeck{% endblock %}
+
+{% block content %}
+<!-- heading matches what's being shown -->
+<h1>
+  {% if search %}Results for "{{ search }}"
+  {% elif subcategory %}{{ subcategory }}
+  {% elif category %}{{ category }}
+  {% else %}All cards{% endif %}
+</h1>
+
+<form action="{{ url_for('pages.browse') }}" method="get" class="search search-inline">
+  <input type="text" name="q" value="{{ search }}" placeholder="Search a name or describe it: &quot;best 80s rookie cards&quot;">
+  <button type="submit" class="btn btn-primary">Search</button>
+</form>
+
+<!-- category filters, the current one is highlighted -->
+<div class="filters">
+  <a href="{{ url_for('pages.browse') }}" class="filter {% if not category and not search %}active{% endif %}">All</a>
+  {% for cat in categories %}
+    <a href="{{ url_for('pages.browse', category=cat) }}" class="filter {% if category == cat %}active{% endif %}">{{ cat }}</a>
+  {% endfor %}
+</div>
+
+<!-- sport filters, only under Sports -->
+{% if category == 'Sports' %}
+<div class="filters sub-filters">
+  <a href="{{ url_for('pages.browse', category='Sports') }}" class="filter {% if not subcategory %}active{% endif %}">All sports</a>
+  {% for sport in sports %}
+    <a href="{{ url_for('pages.browse', category='Sports', sub=sport) }}" class="filter {% if subcategory == sport %}active{% endif %}">{{ sport }}</a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- note when the results came from Claude instead of a name match -->
+{% if used_ai and (cards or suggestions) %}
+<p class="smart-note">✨ No exact name match, so Claude found these for "{{ search }}".</p>
+{% endif %}
+
+<!-- ========== cards already on TopDeck ========== -->
+{% if cards %}
+<div class="card-grid">
+  {% for c in cards %}
+    <a href="{{ url_for('cards.card', card_id=c.id) }}" class="card card-link">
+
+      {% if c.image_url %}
+        <img class="card-img" src="{{ c.image_url }}" alt="{{ c.name }}" loading="lazy">
+      {% else %}
+        <div class="card-art">{{ c.name[0] }}</div>
+      {% endif %}
+
+      <h3>{{ c.name }}</h3>
+      <p class="card-meta">{{ c.subcategory or c.category }} · {{ c.set_or_year }}</p>
+
+      {% if c.rating_count %}
+        <p class="rating">★ {{ c.avg_rating }} <span>({{ c.rating_count }} rating{{ 's' if c.rating_count != 1 }})</span></p>
+      {% else %}
+        <p class="rating"><span>No ratings yet</span></p>
+      {% endif %}
+
+      <!-- why Claude picked it (AI search only) -->
+      {% if c.reason %}
+        <p class="reason">{{ c.reason }}</p>
+      {% endif %}
+
+    </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- ========== cards Claude found that aren't on TopDeck yet ========== -->
+{% if suggestions %}
+<section class="suggestions">
+  <h2>Not on TopDeck yet</h2>
+  <p class="card-meta">Add any of these so the community can rate them.</p>
+
+  <div class="card-grid">
+    {% for s in suggestions %}
+      <div class="card suggestion">
+
+        {% if s.image_url %}
+          <img class="card-img" src="{{ s.image_url }}" alt="{{ s.name }}" loading="lazy">
+        {% else %}
+          <div class="card-art">{{ s.name[0] }}</div>
+        {% endif %}
+
+        <h3>{{ s.name }}</h3>
+        <p class="card-meta">{{ s.subcategory or s.category }}{% if s.set_or_year %} · {{ s.set_or_year }}{% endif %}</p>
+
+        {% if s.reason %}
+          <p class="reason">{{ s.reason }}</p>
+        {% endif %}
+
+        {% if current_user %}
+          <form method="post" action="{{ url_for('cards.add_suggestion') }}">
+            <!-- hidden fields send the card's details when Add is clicked -->
+            {% for field in ['name', 'category', 'subcategory', 'set_or_year', 'image_url', 'source', 'external_id'] %}
+              <input type="hidden" name="{{ field }}" value="{{ s[field] or '' }}">
+            {% endfor %}
+            <!-- come back to these results after adding -->
+            <input type="hidden" name="next" value="{{ request.full_path }}">
+            <button type="submit" class="btn btn-secondary btn-add">+ Add to TopDeck</button>
+          </form>
+        {% else %}
+          <a href="{{ url_for('auth.signin', next=request.full_path) }}" class="btn btn-secondary btn-add signin-link">Sign in to add</a>
+        {% endif %}
+
+      </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<!-- nothing to show: pick the right message -->
+{% if not cards and not suggestions %}
+  {% if ai_failed %}
+    <p class="empty">Smart search isn't available right now. Try searching a card name.</p>
+  {% elif search %}
+    <p class="empty">No cards found. Try a different search.</p>
+  {% else %}
+    {% set label = subcategory or category %}
+    <p class="empty">No {{ label ~ ' ' if label }}cards yet.</p>
+  {% endif %}
+{% endif %}
+{% endblock %}

@@ -1,4 +1,6 @@
 flask
 posthog
+anthropic
+requests
 
 #pip install -r requirements.txt
