@@ -24,5 +24,5 @@ Analytics: PostHog
 |------|------|
 |------|------|
 | Zachary Simon | QA tester & Researcher |
-|------|------|
+|Alec Kubs| Developer |
 | Natalie Kapanowski | Developer |
