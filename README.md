@@ -69,6 +69,7 @@ helpers.py      PostHog tracking and sign-in helpers
 ## Team
 
 | Name | Role |
+|------|------|
 | Zachary Simon | QA tester & Researcher |
 | Alec Kubs | Developer |
 | Natalie Kapanowski | Lead Developer |
