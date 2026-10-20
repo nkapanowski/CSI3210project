@@ -9,7 +9,7 @@ from posthog import Posthog
 import config
 
 # PostHog setup
-posthog = Posthog(config.POSTHOG_API_KEY, host=config.POSTHOG_HOST)
+posthog = Posthog(project_api_key=config.POSTHOG_API_KEY, host=config.POSTHOG_HOST)
 atexit.register(posthog.shutdown)  # send leftover events when the app stops
 
 
@@ -24,7 +24,7 @@ def user_id():
 
 def track(event, **properties):
     """Sends an event to PostHog, e.g. track('card_rated', stars=5)."""
-    posthog.capture(event, distinct_id=user_id(), properties=properties)
+    posthog.capture(distinct_id=user_id(), event=event, properties=properties)
 
 
 def signed_in():
