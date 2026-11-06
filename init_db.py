@@ -42,10 +42,14 @@ def build_poll(question):
                "different character or player: no repeats and no variants of the same one (not Charizard, "
                "Charizard ex, and Charizard VMAX together).")
     for found in insights.find_cards(request):
-        card = sources.enrich(found)  # adds real details and picture(for Magic & Pokémon only)
+        card = sources.enrich(found)  # the newest real printing (picture for Magic & Pokémon only)
+        if card is None:
+            continue  # the card API has no card with that name
         card_id = db.find_or_add_card(card['name'], card['category'], card['subcategory'],
                                       card['set_or_year'], card['image_url'],
-                                      card['source'], card['external_id'], in_deck=False)
+                                      card['source'], card['external_id'], in_deck=False,
+                                      back_image_url=card['back_image_url'], size=card['size'],
+                                      details=sources.card_details(card))
         if card_id not in card_ids:
             card_ids.append(card_id)
     # stop once there are enough cards

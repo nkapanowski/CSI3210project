@@ -6,6 +6,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}TopDeck{% endblock %}</title>
 
+  <!-- use the saved theme (light or dark) before the page draws, so it doesn't flash -->
+  <script>
+    try {
+      if (localStorage.getItem('theme') === 'light') document.documentElement.dataset.theme = 'light';
+    } catch (e) {}
+  </script>
+
   <link rel="stylesheet" href="{{ url_for('static', filename='global.css') }}">
   <!-- each page gets its own CSS here -->
   {% block styles %}{% endblock %}
@@ -22,12 +29,17 @@
       <a href="{{ url_for('cards.add_card') }}">Add a Card</a>
     </nav>
 
-    <!-- "Hi, name" when signed in, otherwise a sign-in button -->
-    {% if current_user %}
-      <span class="user-menu">Hi, {{ current_user }} · <a href="{{ url_for('auth.signout') }}">Sign out</a></span>
-    {% else %}
-      <a href="{{ url_for('auth.signin', next=request.full_path) }}" class="btn btn-secondary signin-link">Sign in</a>
-    {% endif %}
+    <div class="header-right">
+      <!-- switches between dark and light, light is easier to see on a projector -->
+      <button type="button" class="theme-btn" id="theme-btn">☀ Light</button>
+
+      <!-- "Hi, name" when signed in, otherwise a sign-in button -->
+      {% if current_user %}
+        <span class="user-menu">Hi, {{ current_user }} · <a href="{{ url_for('auth.signout') }}">Sign out</a></span>
+      {% else %}
+        <a href="{{ url_for('auth.signin', next=request.full_path) }}" class="btn btn-secondary signin-link">Sign in</a>
+      {% endif %}
+    </div>
   </header>
 
   <!-- each page's content goes here -->
@@ -75,6 +87,35 @@
   <footer>
     <p>TopDeck · CSI 3210 · Fall 2026</p>
   </footer>
+
+  <script>
+    // light / dark button
+    const themeButton = document.getElementById('theme-btn');
+    function showThemeLabel() {
+      const isLight = document.documentElement.dataset.theme === 'light';
+      themeButton.textContent = isLight ? '☾ Dark' : '☀ Light';
+    }
+    themeButton.addEventListener('click', () => {
+      const isLight = document.documentElement.dataset.theme === 'light';
+      if (isLight) {
+        delete document.documentElement.dataset.theme;
+      } else {
+        document.documentElement.dataset.theme = 'light';
+      }
+      try { localStorage.setItem('theme', isLight ? 'dark' : 'light'); } catch (e) {}
+      showThemeLabel();
+    });
+    showThemeLabel();
+
+    // sideways cards (wider than tall) get the "landscape" shape
+    function checkShape(img) {
+      img.classList.toggle('landscape', img.naturalWidth > img.naturalHeight);
+    }
+    document.querySelectorAll('img.card-img').forEach(img => {
+      img.addEventListener('load', () => checkShape(img));  // also runs after flipping a card
+      if (img.complete) checkShape(img);
+    });
+  </script>
 
 </body>
 </html>

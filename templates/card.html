@@ -41,6 +41,15 @@
       <input type="text" name="set_or_year" placeholder="e.g. Base Set (1999)">
     </label>
 
+    <!-- jumbo cards are the big display cards -->
+    <label>Size
+      <select name="size">
+        {% for sz in sizes %}
+          <option value="{{ sz }}">{{ sz }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
     <!-- only signed-in users can add cards -->
     {% if current_user %}
       <button type="submit" class="btn btn-primary">Add card</button>
@@ -68,19 +77,43 @@
 <!-- card page -->
 <a href="{{ url_for('pages.browse', category=card.category) }}" class="back">← Back to {{ card.category }}</a>
 
-<div class="card-detail">
+<div class="card-detail {% if card.size != 'Standard' %}jumbo{% endif %}">
 
   <!-- card image, or its first letter if there isn't one -->
-  {% if card.image_url %}
-    <img class="card-img card-art-large" src="{{ card.image_url }}" alt="{{ card.name }}">
-  {% else %}
-    <div class="card-art card-art-large">{{ card.name[0] }}</div>
-  {% endif %}
+  <div class="card-picture">
+    {% if card.image_url %}
+      <img class="card-img card-art-large zoomable" id="card-image" src="{{ card.image_url }}" alt="{{ card.name }}"
+           title="Click to enlarge">
+
+      <!-- double-sided cards get a flip button -->
+      {% if card.back_image_url %}
+        <button type="button" class="btn btn-secondary flip-btn" id="flip-btn"
+                data-front="{{ card.image_url }}" data-back="{{ card.back_image_url }}">↻ Flip card</button>
+      {% endif %}
+    {% else %}
+      <div class="card-art card-art-large">{{ card.name[0] }}</div>
+    {% endif %}
+  </div>
 
   <div class="card-info">
     <span class="badge">{{ card.subcategory or card.category }}</span>
+    <span class="badge">{{ card.size }}</span>
     <h1>{{ card.name }}</h1>
-    <p class="card-meta">{{ card.set_or_year }}{% if card.source == 'ai' %} · <span title="Details from AI search, not verified">added by AI search</span>{% endif %}</p>
+
+    <!-- card details -->
+    <dl class="details">
+      <dt>Category</dt><dd>{{ card.category }}{% if card.subcategory %} · {{ card.subcategory }}{% endif %}</dd>
+      {% if card.set_or_year %}<dt>Set</dt><dd>{{ card.set_or_year }}</dd>{% endif %}
+      {% for label, value in details %}
+        <dt>{{ label }}</dt><dd>{{ value }}</dd>
+      {% endfor %}
+      <!-- the card's size, and whether it's tournament legal -->
+      <dt>Size</dt><dd>{{ card.size }}: {{ size_info }}
+        {% if card.size != 'Standard' %}<br>Jumbo sizes vary, so measure before buying sleeves.{% endif %}</dd>
+    </dl>
+    {% if card.source == 'ai' %}
+      <p class="card-meta details-note">Details from AI search. May contain mistakes.</p>
+    {% endif %}
 
     {% if not card.in_deck %}
       <!-- not in the deck yet (opened from a poll), must be added before rating -->
@@ -113,15 +146,16 @@
 
       {% if current_user %}
         <form method="post" action="{{ url_for('cards.rate', card_id=card.id) }}" class="rate-form">
-          <p class="card-meta">{% if my_rating %}Your rating: {{ my_rating }} ★. Change it below.{% else %}Your rating:{% endif %}</p>
+          <p class="card-meta">{% if my_rating is not none %}Your rating: {{ my_rating }} ★. Change it below.{% else %}Your rating:{% endif %}</p>
 
           <!-- listed 5 to 1, lights up the stars before it -->
           <div class="stars">
             {% for n in range(5, 0, -1) %}
-              <input type="radio" id="star{{ n }}" name="stars" value="{{ n }}" {% if my_rating == n %}checked{% endif %} required>
+              <input type="radio" id="star{{ n }}" name="stars" value="{{ n }}" {% if my_rating == n %}checked{% endif %}>
               <label for="star{{ n }}" title="{{ n }} star{{ 's' if n != 1 }}">★</label>
             {% endfor %}
           </div>
+          <p class="card-meta star-hint">No stars picked = 0 stars. Click a lit star again to clear it.</p>
 
           <!-- VON RESTOROFF: the one bright button on the page -->
           <button type="submit" class="btn btn-primary btn-large">Rate this card</button>
@@ -146,7 +180,7 @@
         </form>
 
       {% else %}
-        <p class="card-meta">Curious why this card matters? Get a quick take.</p>
+        <p class="card-meta">Want more than the details? Get a quick take on why this card matters.</p>
         <form method="post" action="{{ url_for('cards.insight', card_id=card.id) }}">
           <button type="submit" class="btn btn-secondary">Get TopDeck Insight</button>
         </form>
@@ -155,5 +189,42 @@
 
   </div>
 </div>
+
+<!-- big view of the card, opens when you click the picture -->
+<dialog id="zoom-dialog" class="zoom-dialog">
+  <img id="zoom-image" alt="{{ card.name }}">
+</dialog>
+
+<script>
+  const cardImage = document.getElementById('card-image');
+  const flipButton = document.getElementById('flip-btn');
+  const zoomDialog = document.getElementById('zoom-dialog');
+  const zoomImage = document.getElementById('zoom-image');
+
+  // click the star you already picked to clear it (back to 0)
+  document.querySelectorAll('.stars label').forEach(label => {
+    const star = document.getElementById(label.htmlFor);
+    let wasChecked = false;
+    label.addEventListener('mousedown', () => { wasChecked = star.checked; });
+    star.addEventListener('click', () => { if (wasChecked) star.checked = false; });
+  });
+
+  // flip between the front and back
+  if (flipButton) {
+    flipButton.addEventListener('click', () => {
+      const showingFront = cardImage.getAttribute('src') === flipButton.dataset.front;
+      cardImage.src = showingFront ? flipButton.dataset.back : flipButton.dataset.front;
+    });
+  }
+
+  // click the picture to see it big, click again to close
+  if (cardImage) {
+    cardImage.addEventListener('click', () => {
+      zoomImage.src = cardImage.src;
+      zoomDialog.showModal();
+    });
+    zoomDialog.addEventListener('click', () => zoomDialog.close());
+  }
+</script>
 {% endif %}
 {% endblock %}

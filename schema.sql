@@ -20,6 +20,9 @@ CREATE TABLE cards (
     subcategory TEXT,                       -- the sport, for Sports cards
     set_or_year TEXT,
     image_url   TEXT,
+    back_image_url TEXT,                    -- back of the card, for double-sided Magic cards
+    size        TEXT DEFAULT 'Standard' CHECK (size IN ('Standard', 'Jumbo')),
+    details     TEXT,                       -- card details shown on its page, saved as JSON
     source      TEXT DEFAULT 'user',        -- starter, user, ai, scryfall, tcgdex
     external_id TEXT,                       -- the card's ID on Scryfall/TCGdex
     in_deck     INTEGER DEFAULT 1,          -- 0 = only used in a poll, not added to deck yet
@@ -29,7 +32,7 @@ CREATE TABLE cards (
 CREATE TABLE ratings (
     username   TEXT NOT NULL,
     card_id    INTEGER NOT NULL REFERENCES cards(id),
-    stars      INTEGER NOT NULL CHECK (stars BETWEEN 1 AND 5),
+    stars      INTEGER NOT NULL CHECK (stars BETWEEN 0 AND 5),
     rated_at   TEXT DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (username, card_id)         -- one rating per user per card
 );

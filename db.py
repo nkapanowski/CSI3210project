@@ -2,6 +2,7 @@
 # run "python init_db.py" once to create topdeck.db
 # to reset datatbase, delete topdeck.db and run "python init_db.py" again
 
+import json
 import os
 import sqlite3
 
@@ -10,6 +11,14 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'topdeck.db')
 
 # category choices, and the subcategories for Sports
 CATEGORIES = ['Magic', 'Pokémon', 'Sports', 'Other']
+# card sizes. jumbo cards are big display cards (not tournament legal)
+SIZES = ['Standard', 'Jumbo']
+
+# what each card page says about its size. jumbo sizes vary by product, so it's "about"
+SIZE_INFO = {
+    'Standard': '2.5 × 3.5 in (63 × 88 mm) · the normal size, tournament legal',
+    'Jumbo': 'about 6 × 8 in · big promo card from collection boxes · display only, not tournament legal',
+}
 SPORTS = ['Baseball', 'Basketball', 'Football', 'Hockey', 'Soccer']
 
 # every card query starts with this to get avg rating and count
@@ -60,7 +69,7 @@ def get_or_create_user(username, email):
 # poll cards are saved so the polls work, and the user has cards to vote on before adding any to their deck
 # but they stay out of the deck (in_deck = 0) until someone adds them
 
-def get_cards(category=None, subcategory=None, search=None):
+def get_cards(category=None, subcategory=None, search=None, size=None):
     """Cards in the deck, optionally filtered. This is what Browse shows."""
     sql = CARD_SELECT + ' WHERE cards.in_deck = 1'
     params = []
@@ -73,6 +82,9 @@ def get_cards(category=None, subcategory=None, search=None):
     if search:
         sql += ' AND cards.name LIKE ?'
         params.append('%' + search + '%')
+    if size:
+        sql += ' AND cards.size = ?'
+        params.append(size)
     sql += ' GROUP BY cards.id ORDER BY rating_count DESC, cards.name'
     return query_all(sql, params)
 
@@ -83,49 +95,65 @@ def get_card(card_id):
 
 
 def add_card(name, category, subcategory, set_or_year, image_url=None, source='user',
-             external_id=None, in_deck=True):
-    """Saves a new card and returns its id."""
+             external_id=None, in_deck=True, back_image_url=None, size='Standard', details=None):
+    """Saves a new card and returns its id. details is a list like [['HP', '120'], ['Rarity', 'Rare']]."""
     if in_deck:
         in_deck_value = 1
     else:
         in_deck_value = 0
-    return execute('INSERT INTO cards (name, category, subcategory, set_or_year, image_url, source, external_id, in_deck) '
-                   'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                   (name, category, subcategory, set_or_year, image_url, source, external_id, in_deck_value))
+    if size not in SIZES:
+        size = 'Standard'
+    return execute('INSERT INTO cards (name, category, subcategory, set_or_year, image_url, back_image_url, '
+                   'size, details, source, external_id, in_deck) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                   (name, category, subcategory, set_or_year, image_url, back_image_url,
+                    size, json.dumps(details or []), source, external_id, in_deck_value))
 
 
-def find_saved_card(name, category, external_id=None):
-    """Looks for a card we've already saved: first by its API id, then by name. Returns the row or None."""
+def find_saved_card(name, category, external_id=None, size='Standard'):
+    """Looks for a card we've already saved. Returns the row or None.
+    Each printing (and each size) is its own card, so with an API id we only match that exact printing.
+    Cards with no API id (sports, other, AI-only) match by name."""
     if external_id:
-        card = query_one('SELECT * FROM cards WHERE external_id = ?', (external_id,))
-        if card:
-            return card
-    return query_one('SELECT * FROM cards WHERE LOWER(name) = LOWER(?) AND category = ?', (name, category))
+        return query_one('SELECT * FROM cards WHERE external_id = ? AND size = ?', (external_id, size))
+    return query_one('SELECT * FROM cards WHERE LOWER(name) = LOWER(?) AND category = ? AND size = ? '
+                     'AND external_id IS NULL', (name, category, size))
 
 
-def find_card(name, category, external_id=None):
+def find_card(name, category, external_id=None, size='Standard'):
     """Returns the id of a matching card that's in the deck, or None. Doesn't add anything."""
-    card = find_saved_card(name, category, external_id)
+    card = find_saved_card(name, category, external_id, size)
     if card and card['in_deck']:
         return card['id']
     return None
 
 
 def find_or_add_card(name, category, subcategory, set_or_year, image_url=None, source='ai',
-                     external_id=None, in_deck=True):
+                     external_id=None, in_deck=True, back_image_url=None, size='Standard', details=None):
     """Returns the card's id, saving it first if it's new.
     in_deck=False is for poll cards: saved, but not added to the deck."""
-    card = find_saved_card(name, category, external_id)
+    card = find_saved_card(name, category, external_id, size)
     if card is None:
-        return add_card(name, category, subcategory, set_or_year, image_url, source, external_id, in_deck)
+        return add_card(name, category, subcategory, set_or_year, image_url, source, external_id, in_deck,
+                        back_image_url, size, details)
 
     # We already have it. Fill in a picture if it didn't have one, and add it to the deck if asked.
     if image_url and not card['image_url']:
         execute('UPDATE cards SET image_url = ?, external_id = ? WHERE id = ?',
                 (image_url, external_id, card['id']))
+    if back_image_url and not card['back_image_url']:
+        execute('UPDATE cards SET back_image_url = ? WHERE id = ?', (back_image_url, card['id']))
+    if details and not get_details(card):
+        execute('UPDATE cards SET details = ? WHERE id = ?', (json.dumps(details), card['id']))
     if in_deck and not card['in_deck']:
         add_to_deck(card['id'])
     return card['id']
+
+
+def get_details(card):
+    """A card's details as a list of [label, value] pairs."""
+    if not card.get('details'):
+        return []
+    return json.loads(card['details'])
 
 
 def add_to_deck(card_id):

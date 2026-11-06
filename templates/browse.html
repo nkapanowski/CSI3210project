@@ -7,6 +7,16 @@
 
 {% block title %}Browse · TopDeck{% endblock %}
 
+{# "Not what I meant" button for an AI search result. tells Claude the card was wrong for this search #}
+{% macro wrong_button(card) %}
+  <form method="post" action="{{ url_for('pages.wrong_result') }}" class="wrong-form">
+    <input type="hidden" name="search" value="{{ search }}">
+    <input type="hidden" name="name" value="{{ card.name }}">
+    <input type="hidden" name="set_or_year" value="{{ card.set_or_year or '' }}">
+    <button type="submit" class="wrong-btn">✕ Not what I meant</button>
+  </form>
+{% endmacro %}
+
 {% block content %}
 <!-- heading matches what's being shown -->
 <h1>
@@ -39,15 +49,36 @@
 </div>
 {% endif %}
 
+<!-- size filter: standard cards or the big jumbo ones -->
+<div class="filters size-filters">
+  <a href="{{ url_for('pages.browse', category=category, sub=subcategory, q=search or None) }}" class="filter {% if not size %}active{% endif %}">All sizes</a>
+  {% for sz in sizes %}
+    <a href="{{ url_for('pages.browse', category=category, sub=subcategory, q=search or None, size=sz) }}" class="filter {% if size == sz %}active{% endif %}">{{ sz }}</a>
+  {% endfor %}
+</div>
+
 <!-- note when the results came from Claude instead of a name match -->
 {% if used_ai and (cards or suggestions) %}
-<p class="smart-note">✨ No exact name match, so Claude found these for "{{ search }}".</p>
+<p class="smart-note">✨ Claude found these for "{{ search }}".</p>
+<p class="smart-note">{{ cards | length + suggestions | length }} cards found. Use the size filter, or add a set or card number to narrow it, like "Charizard Base Set 4".</p>
+{% endif %}
+
+<!-- the Pokémon card database doesn't list jumbo cards, so a jumbo filter can't find new ones -->
+{% if search and size and size != 'Standard' %}
+<p class="smart-note">Only jumbo cards already on TopDeck, and oversized Magic cards, show here: the Pokémon card
+  database doesn't list jumbos. To add a jumbo Pokémon card, search with "All sizes" and pick its size when you add it.</p>
+{% endif %}
+
+<!-- after someone clicks "Not what I meant" -->
+{% if reported %}
+<p class="notice">Thanks! Claude will remember that wasn't the right card.</p>
 {% endif %}
 
 <!-- ========== cards already on TopDeck ========== -->
 {% if cards %}
 <div class="card-grid">
   {% for c in cards %}
+    <div class="grid-item">
     <a href="{{ url_for('cards.card', card_id=c.id) }}" class="card card-link">
 
       {% if c.image_url %}
@@ -58,6 +89,7 @@
 
       <h3>{{ c.name }}</h3>
       <p class="card-meta">{{ c.subcategory or c.category }} · {{ c.set_or_year }}</p>
+      {% if c.size != 'Standard' %}<span class="badge">{{ c.size }}</span>{% endif %}
 
       {% if c.rating_count %}
         <p class="rating">★ {{ c.avg_rating }} <span>({{ c.rating_count }} rating{{ 's' if c.rating_count != 1 }})</span></p>
@@ -71,6 +103,8 @@
       {% endif %}
 
     </a>
+    {% if c.reason %}{{ wrong_button(c) }}{% endif %}
+    </div>
   {% endfor %}
 </div>
 {% endif %}
@@ -93,6 +127,7 @@
 
         <h3>{{ s.name }}</h3>
         <p class="card-meta">{{ s.subcategory or s.category }}{% if s.set_or_year %} · {{ s.set_or_year }}{% endif %}</p>
+        {% if s.size != 'Standard' %}<span class="badge">{{ s.size }}</span>{% endif %}
 
         {% if s.reason %}
           <p class="reason">{{ s.reason }}</p>
@@ -101,16 +136,28 @@
         {% if current_user %}
           <form method="post" action="{{ url_for('cards.add_suggestion') }}">
             <!-- hidden fields send the card's details when Add is clicked -->
-            {% for field in ['name', 'category', 'subcategory', 'set_or_year', 'image_url', 'source', 'external_id'] %}
+            {% for field in ['name', 'category', 'subcategory', 'set_or_year', 'image_url', 'back_image_url', 'source', 'external_id',
+                              'team', 'position', 'brand', 'card_number', 'rookie', 'key_stats'] %}
               <input type="hidden" name="{{ field }}" value="{{ s[field] or '' }}">
             {% endfor %}
             <!-- come back to these results after adding -->
             <input type="hidden" name="next" value="{{ request.full_path }}">
+            <input type="hidden" name="search" value="{{ search }}">
+
+            <!-- the card APIs don't list jumbo Pokémon cards, so the user picks the size -->
+            <label class="size-pick">Size
+              <select name="size">
+                {% for sz in sizes %}
+                  <option value="{{ sz }}" {% if s.size == sz %}selected{% endif %}>{{ sz }}</option>
+                {% endfor %}
+              </select>
+            </label>
             <button type="submit" class="btn btn-secondary btn-add">+ Add to TopDeck</button>
           </form>
         {% else %}
           <a href="{{ url_for('auth.signin', next=request.full_path) }}" class="btn btn-secondary btn-add signin-link">Sign in to add</a>
         {% endif %}
+        {{ wrong_button(s) }}
 
       </div>
     {% endfor %}

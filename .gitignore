@@ -4,3 +4,14 @@ __pycache__/
 *.db
 .venv/
 venv/
+*storybook.log
+storybook-static
+search_notes.md
+node_modules/
+.storybook/
+stories/
+vitest.config.js
+package.json
+package-lock.json
+storybook-results*.txt
+.vscode/

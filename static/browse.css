@@ -41,4 +41,19 @@
 
 /* pushes the add button to the bottom of the card */
 .suggestion form, .suggestion .btn-add { margin-top: auto; }
+.suggestion .wrong-form { margin-top: 0.5rem; }
+
+/* size dropdown on suggestions */
+.size-pick { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+             margin-top: 0.75rem; font-size: 0.82rem; color: var(--muted); }
+.size-pick select { padding: 0.3rem 0.5rem; border-radius: 6px; border: 1px solid var(--border);
+                    background: var(--bg); color: var(--text); }
+
+/* "Not what I meant" button, quiet so it doesn't compete with Add */
+.grid-item { display: flex; flex-direction: column; }
+.grid-item .card-link { flex: 1; }
+.wrong-form { text-align: center; margin-top: 0.4rem; }
+.wrong-btn { background: none; border: none; color: var(--muted); font-size: 0.8rem; cursor: pointer;
+             text-decoration: underline; padding: 0.3rem; }
+.wrong-btn:hover { color: var(--gold); }
 .btn-add { width: 100%; margin-top: 0.9rem; text-align: center; font-size: 0.9rem; padding: 0.6rem 1rem; }
