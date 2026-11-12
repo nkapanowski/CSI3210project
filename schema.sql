@@ -21,7 +21,7 @@ CREATE TABLE cards (
     set_or_year TEXT,
     image_url   TEXT,
     back_image_url TEXT,                    -- back of the card, for double-sided Magic cards
-    size        TEXT DEFAULT 'Standard' CHECK (size IN ('Standard', 'Jumbo')),
+    size        TEXT DEFAULT 'Standard' CHECK (size IN ('Standard', 'Oversized')),  -- TODO (Pokémon): add 'Modern Jumbo', 'Vintage Jumbo'
     details     TEXT,                       -- card details shown on its page, saved as JSON
     source      TEXT DEFAULT 'user',        -- starter, user, ai, scryfall, tcgdex
     external_id TEXT,                       -- the card's ID on Scryfall/TCGdex

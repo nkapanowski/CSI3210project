@@ -49,13 +49,15 @@
 </div>
 {% endif %}
 
-<!-- size filter: standard cards or the big jumbo ones -->
+<!-- size filter: standard cards or the big ones (hidden when there's only one size, like Sports) -->
+{% if sizes | length > 1 %}
 <div class="filters size-filters">
   <a href="{{ url_for('pages.browse', category=category, sub=subcategory, q=search or None) }}" class="filter {% if not size %}active{% endif %}">All sizes</a>
   {% for sz in sizes %}
     <a href="{{ url_for('pages.browse', category=category, sub=subcategory, q=search or None, size=sz) }}" class="filter {% if size == sz %}active{% endif %}">{{ sz }}</a>
   {% endfor %}
 </div>
+{% endif %}
 
 <!-- note when the results came from Claude instead of a name match -->
 {% if used_ai and (cards or suggestions) %}
@@ -63,10 +65,15 @@
 <p class="smart-note">{{ cards | length + suggestions | length }} cards found. Use the size filter, or add a set or card number to narrow it, like "Charizard Base Set 4".</p>
 {% endif %}
 
-<!-- the Pokémon card database doesn't list jumbo cards, so a jumbo filter can't find new ones -->
-{% if search and size and size != 'Standard' %}
-<p class="smart-note">Only jumbo cards already on TopDeck, and oversized Magic cards, show here: the Pokémon card
-  database doesn't list jumbos. To add a jumbo Pokémon card, search with "All sizes" and pick its size when you add it.</p>
+{% for note in notes %}
+  <p class="smart-note">{{ note }}</p>
+{% endfor %}
+
+{# the Pokémon card database doesn't list jumbo cards, so a jumbo filter can't find new ones.
+   never shown for Magic: Magic's big cards are "Oversized", and Scryfall lists them all #}
+{% if search and size and 'Jumbo' in size and category != 'Magic' %}
+<p class="smart-note">Only jumbo cards already on TopDeck show here: the Pokémon card database doesn't list
+  jumbos. To add a jumbo Pokémon card, search with "All sizes" and pick its size when you add it.</p>
 {% endif %}
 
 <!-- after someone clicks "Not what I meant" -->
@@ -144,14 +151,19 @@
             <input type="hidden" name="next" value="{{ request.full_path }}">
             <input type="hidden" name="search" value="{{ search }}">
 
-            <!-- the card APIs don't list jumbo Pokémon cards, so the user picks the size -->
-            <label class="size-pick">Size
-              <select name="size">
-                {% for sz in sizes %}
-                  <option value="{{ sz }}" {% if s.size == sz %}selected{% endif %}>{{ sz }}</option>
-                {% endfor %}
-              </select>
-            </label>
+            <!-- the card APIs don't list jumbo Pokémon cards, so the user picks the size.
+                 sports cards are always Standard, so no choice there -->
+            {% if sizes_by_category[s.category] | length > 1 %}
+              <label class="size-pick">Size
+                <select name="size">
+                  {% for sz in sizes_by_category[s.category] %}
+                    <option value="{{ sz }}" {% if s.size == sz %}selected{% endif %}>{{ sz }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+            {% else %}
+              <input type="hidden" name="size" value="Standard">
+            {% endif %}
             <button type="submit" class="btn btn-secondary btn-add">+ Add to TopDeck</button>
           </form>
         {% else %}

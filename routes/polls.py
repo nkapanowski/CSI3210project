@@ -24,6 +24,7 @@ def polls_page():
         return redirect(url_for('polls.polls_page') + '#poll-' + str(poll_id))
 
     track('page_view', page='polls')
+    session['back_to'] = [url_for('polls.polls_page'), 'Polls']  # a card's "← Back" link returns here
     my_votes = {}
     if signed_in():
         my_votes = db.get_user_votes(session['username'])

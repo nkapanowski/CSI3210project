@@ -1,7 +1,8 @@
 # real card details and images from free APIs (no keys needed)
 # Scryfall for Magic  (https://scryfall.com/docs/api)
 # TCGdex for Pokémon   (https://tcgdex.dev)
-# sports cards have no free API, so they use claude's details (no images)
+# CardSight AI for sports (needs CARDSIGHT_API_KEY in config.py). without a key,
+# sports cards use claude's details (no pictures)
 
 # one card name (like "Charizard") has many printings: different sets, numbers, and sizes.
 # find_printings() gets the real printings from the API and keeps the ones that match
@@ -9,7 +10,11 @@
 
 import re
 
+import time
+
 import requests
+
+import config
 
 # sent with every request so the APIs know who's asking
 HEADERS = {'User-Agent': 'TopDeck/1.0 (CSI 3210 class project)', 'Accept': 'application/json'}
@@ -17,7 +22,11 @@ TIMEOUT = 6          # seconds, so a slow API doesn't freeze the page
 MAX_RESULTS = 250    # safety limit so one search can't load thousands of pictures
 
 
-###---- magic (Scryfall) ----###
+###---- Magic (Scryfall) ----###
+
+# Magic's big side-game cards (all about 3.5 x 5 in), by their Scryfall layout
+OVERSIZED_KINDS = {'planar': 'Planechase', 'scheme': 'Archenemy', 'vanguard': 'Vanguard'}
+
 
 def magic_card(card):
     """Turns one Scryfall printing into a TopDeck card dict."""
@@ -29,6 +38,12 @@ def magic_card(card):
         images = faces[0].get('image_uris')
         if len(faces) > 1 and faces[1].get('image_uris'):
             back_image_url = faces[1]['image_uris'].get('normal')
+
+    # every other card has a printed back design (usually the classic Magic back).
+    # Scryfall gives its id, and keeps a picture of each design
+    if not back_image_url and card.get('card_back_id'):
+        back_id = card['card_back_id']
+        back_image_url = f'https://backs.scryfall.io/large/{back_id[0]}/{back_id[1]}/{back_id}.jpg'
     image_url = None
     if images:
         image_url = images.get('normal')
@@ -37,10 +52,10 @@ def magic_card(card):
     year = (card.get('released_at') or '')[:4]
     number = card.get('collector_number', '')
 
-    # scryfall marks big display cards (like oversized Commander cards) as "oversized"
+    # big Magic cards: Scryfall marks them "oversized", or they're a big side-game card
     size = 'Standard'
-    if card.get('oversized'):
-        size = 'Jumbo'
+    if card.get('oversized') or card.get('layout') in OVERSIZED_KINDS:
+        size = 'Oversized'
 
     return {
         'name': card['name'],
@@ -59,7 +74,9 @@ def magic_card(card):
 def magic_printings(name):
     """Every printing of a Magic card, newest first. [] if no card has that name."""
     url = 'https://api.scryfall.com/cards/search'
-    params = {'q': '!"' + name + '"', 'unique': 'prints', 'order': 'released', 'dir': 'desc'}
+    # include_extras: also find oversized and side-game cards (planes, schemes, Vanguard)
+    params = {'q': '!"' + name + '"', 'unique': 'prints', 'order': 'released', 'dir': 'desc',
+              'include_extras': 'true'}
     r = requests.get(url, params=params, headers=HEADERS, timeout=TIMEOUT)
 
     # no card with that exact name: let Scryfall fix the spelling once, then try again
@@ -73,10 +90,20 @@ def magic_printings(name):
 
     if r.status_code != 200:
         return []
-    return [magic_card(card) for card in r.json().get('data', [])]
+
+    # Scryfall sends 175 cards per page, so keep loading pages (up to MAX_RESULTS)
+    page = r.json()
+    printings = [magic_card(card) for card in page.get('data', [])]
+    while page.get('has_more') and len(printings) < MAX_RESULTS:
+        r = requests.get(page['next_page'], headers=HEADERS, timeout=TIMEOUT)
+        if r.status_code != 200:
+            break
+        page = r.json()
+        printings += [magic_card(card) for card in page.get('data', [])]
+    return printings
 
 
-###---- pokémon (TCGdex) ----###
+###---- Pokémon (TCGdex) ----###
 
 # set names by set id, like {'base1': 'Base Set'}. loaded once, then kept in memory
 pokemon_sets = {}
@@ -120,7 +147,7 @@ def pokemon_printings(name):
             'set_name': set_name,
             'year': '',  # TCGdex only has the year on each set's own page
             'number': number,
-            'size': 'Standard',  # TCGdex doesn't list jumbo cards, users pick the size when adding
+            'size': 'Standard',  # TCGdex doesn't list jumbo cards
             'image_url': image_url,
             'back_image_url': None,
             'source': 'tcgdex',
@@ -130,6 +157,139 @@ def pokemon_printings(name):
     # cards with a picture first
     printings.sort(key=lambda p: p['image_url'] is None)
     return printings
+
+
+###---- Sports (CardSight AI, free plan: 750 calls a month) ----###
+# needs CARDSIGHT_API_KEY in config.py. without a key, sports cards use claude's details instead.
+# CardSight's terms only allow keeping their card info and pictures short-term, so nothing
+# from CardSight is saved in the database (only the card's CardSight id). results are kept
+# in memory for a while instead, which also saves free calls.
+
+CARDSIGHT_API = 'https://api.cardsight.ai/v1'
+MAX_SPORTS_CARDS = 8      # most sports cards to show per name, to save free calls
+KEEP_FOR = 60 * 60        # seconds to remember CardSight results (1 hour)
+
+# the key is optional, so teammates without one can still run the app
+CARDSIGHT_KEY = getattr(config, 'CARDSIGHT_API_KEY', None)
+
+# short-term memory of CardSight results: {key: (time saved, value)}
+cardsight_memory = {}
+
+
+def remembered(key):
+    """A saved result if it's still fresh, otherwise None."""
+    if key in cardsight_memory:
+        saved_at, value = cardsight_memory[key]
+        if time.time() - saved_at < KEEP_FOR:
+            return value
+        del cardsight_memory[key]
+    return None
+
+
+def remember(key, value):
+    if len(cardsight_memory) > 300:  # don't let it grow forever
+        cardsight_memory.clear()
+    cardsight_memory[key] = (time.time(), value)
+
+
+def cardsight_get(path, params=None):
+    """One call to CardSight. Returns the response (or raises if the network fails)."""
+    return requests.get(CARDSIGHT_API + path, params=params, headers={'X-API-Key': CARDSIGHT_KEY},
+                        timeout=TIMEOUT)
+
+
+def sports_printings(found):
+    """Real sports cards for what Claude found: up to MAX_SPORTS_CARDS, as TopDeck card dicts.
+    Returns None if there's no key or CardSight couldn't answer, so the app falls back to Claude."""
+    if not CARDSIGHT_KEY:
+        return None
+
+    params = {'q': found['name'], 'type': 'card', 'take': MAX_SPORTS_CARDS}
+    if found.get('subcategory'):
+        params['segment'] = found['subcategory']      # the sport, like "Basketball"
+    if found.get('wanted_year'):
+        params['year'] = found['wanted_year']
+    if found.get('wanted_set'):
+        params['q'] += ' ' + found['wanted_set']     # "michael jordan fleer"
+
+    key = ('search', tuple(sorted(params.items())))
+    results = remembered(key)
+    if results is None:
+        r = cardsight_get('/catalog/search', params)
+        if r.status_code != 200:
+            print('CardSight search failed:', r.status_code)
+            return None
+        results = r.json().get('results', [])
+        remember(key, results)
+
+    cards = []
+    for c in results:
+        year = c.get('year') or ''
+        set_name = ' '.join(x for x in [c.get('releaseName'), c.get('setName')] if x)
+        number = c.get('cardNumber') or ''
+        set_or_year = set_name
+        if year:
+            set_or_year = f'{set_name} ({year})'
+        if number:
+            set_or_year += f' · #{number}'
+        cards.append({
+            'name': c['name'],
+            'set_or_year': set_or_year,                 # ex. 'Fleer Base (1986) · #57'
+            'set_name': set_name,
+            'year': year,
+            'number': number,
+            'size': 'Standard',
+            'image_url': '/sports-image/' + c['id'],    # TopDeck's own route fetches the picture
+            'back_image_url': None,
+            'source': 'cardsight',
+            'external_id': c['id'],
+        })
+    return cards
+
+
+def sports_details(card_id):
+    """A sports card's team and position from CardSight, like {'Team': 'Chicago Bulls', 'Position': 'Guard'}.
+    Only what CardSight has: {} if it has neither."""
+    if not CARDSIGHT_KEY:
+        return {}
+    details = remembered(('details', card_id))
+    if details is not None:
+        return details
+    try:
+        r = cardsight_get('/catalog/cards/' + card_id)
+    except requests.RequestException:
+        return {}
+    if r.status_code != 200:
+        return {}
+
+    # CardSight keeps extra info as key/value fields, like {'key': 'TEAM', 'value': 'Chicago Bulls'}
+    details = {}
+    for field in r.json().get('fields') or []:
+        key = (field.get('key') or '').upper()
+        if 'TEAM' in key and field.get('value'):
+            details['Team'] = field['value']
+        elif 'POSITION' in key and field.get('value'):
+            details['Position'] = field['value']
+    remember(('details', card_id), details)
+    return details
+
+
+def sports_image(card_id):
+    """A sports card's picture as (bytes, content type), or None if there isn't one."""
+    if not CARDSIGHT_KEY:
+        return None
+    image = remembered(('image', card_id))
+    if image is not None:
+        return image
+    try:
+        r = cardsight_get('/images/cards/' + card_id, {'format': 'raw'})
+    except requests.RequestException:
+        return None
+    if r.status_code != 200:
+        return None
+    image = (r.content, r.headers.get('Content-Type', 'image/jpeg'))
+    remember(('image', card_id), image)
+    return image
 
 
 ###---- card details (shown on the card page) ----###
@@ -143,7 +303,17 @@ def magic_details(card_id):
     face = card
     if not card.get('type_line') and card.get('card_faces'):
         face = card['card_faces'][0]  # double-sided: use the front
-    details = [['Type', card.get('type_line') or face.get('type_line')],
+    # what kind of big card it is, if it's oversized
+    kind = OVERSIZED_KINDS.get(card.get('layout'))
+    if not kind and card.get('oversized'):
+        # other oversized cards are display cards, mostly from Commander decks
+        if 'commander' in (card.get('set_name') or '').lower():
+            kind = 'Commander display'
+        else:
+            kind = 'Display card'
+
+    details = [['Oversized type', kind],
+               ['Type', card.get('type_line') or face.get('type_line')],
                ['Mana cost', card.get('mana_cost') or face.get('mana_cost')],
                ['Rarity', (card.get('rarity') or '').title()],
                ['Artist', card.get('artist')]]
@@ -176,6 +346,10 @@ def card_details(card):
     card_id = card.get('external_id') or ''
     if card_id and not all(ch.isalnum() or ch in '-_.' for ch in card_id):
         return []
+    if card.get('source') == 'cardsight':
+        # CardSight's terms don't allow saving its card info (the card page loads it live),
+        # but Claude's team and position are ours to keep, as a backup
+        return [[label, value] for label, value in claude_sports_details(card) if label in ('Team', 'Position')]
     try:
         if card.get('source') == 'scryfall' and card.get('external_id'):
             return magic_details(card['external_id'])
@@ -184,6 +358,11 @@ def card_details(card):
     except requests.RequestException:
         return []  # API down or slow, save the card without details
 
+    return claude_sports_details(card)
+
+
+def claude_sports_details(card):
+    """The sports details Claude found, like [['Team', 'Chicago Bulls'], ['Position', 'Guard']]."""
     details = []
     for key, label in SPORTS_FIELDS:
         value = ' '.join(str(card.get(key) or '').split())[:120]  # one short line
@@ -218,8 +397,12 @@ def find_printings(found):
             printings = magic_printings(found['name'])
         elif found['category'] == 'Pokémon':
             printings = pokemon_printings(found['name'])
+        elif found['category'] == 'Sports':
+            # CardSight, if there's a key. None (no key, or it failed) or [] (not found)
+            # both fall back to Claude's details, since CardSight may not have every card
+            printings = sports_printings(found) or None
         else:
-            printings = None  # no free API for sports and other cards
+            printings = None  # no free API for other cards
     except requests.RequestException:
         printings = None  # API down or slow
 
@@ -227,7 +410,7 @@ def find_printings(found):
     if printings is None:
         card = dict(found)
         card.update({'image_url': None, 'back_image_url': None, 'source': 'ai', 'external_id': None,
-                     'size': 'Jumbo' if found.get('size') == 'Jumbo' else 'Standard'})
+                     'size': 'Standard'})  # TODO (Pokémon): pick a jumbo size here when the search asks for jumbo
         return [card], 1
 
     # the API has no card with this name, so Claude probably got it wrong: skip it
@@ -238,18 +421,19 @@ def find_printings(found):
     if not matching:
         matching = printings  # nothing fit the set/number they typed, so show them all to pick from
 
-    # they asked for a jumbo card
+    # they asked for a big card (jumbo, oversized...)
     if found.get('size') == 'Jumbo':
-        jumbo = [p for p in matching if p['size'] != 'Standard']
-        if jumbo:
-            matching = jumbo
-        else:
-            for p in matching:  # the API doesn't list jumbos, so pre-pick Jumbo for the user
-                p['size'] = 'Jumbo'
+        big = [p for p in matching if p['size'] != 'Standard']
+        if big:
+            matching = big
+        # TODO (Pokémon): the Pokémon API doesn't list jumbo cards, so pre-pick Modern Jumbo
+        # (2020 and later) or Vintage Jumbo (before 2020) for the user here
+        # Magic: Scryfall knows every oversized card, so if there's none, show the normal ones
+        # (the search page says there's no oversized version). sports cards are always Standard
 
     for p in matching:
         p['category'] = found['category']
-        p['subcategory'] = None
+        p['subcategory'] = found.get('subcategory') if found['category'] == 'Sports' else None
     return matching[:MAX_RESULTS], len(matching)
 
 

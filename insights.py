@@ -83,7 +83,7 @@ SHOW_CARDS_TOOL = {
                         'rookie': {'type': 'string', 'enum': ['Yes', 'No', ''], 'description': 'Sports only: is it a rookie card?'},
                         'key_stats': {'type': 'string', 'description': 'Sports only: 1-3 well-known career facts, under 15 words. Empty if unsure'},
                         'size': {'type': 'string', 'enum': ['Standard', 'Jumbo', 'Any'],
-                                 'description': 'Jumbo only if the search asks for jumbo/oversized cards'},
+                                 'description': 'Jumbo if the search asks for jumbo, oversized, giant, or big cards'},
                     },
                     'required': ['name', 'category', 'set_or_year', 'reason'],
                 },

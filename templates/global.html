@@ -111,9 +111,23 @@
     function checkShape(img) {
       img.classList.toggle('landscape', img.naturalWidth > img.naturalHeight);
     }
+    // a picture that won't load (like a sports card with no picture) becomes the letter placeholder
+    function showLetter(img) {
+      const letter = document.createElement('div');
+      letter.className = img.classList.contains('card-art-large') ? 'card-art card-art-large' : 'card-art';
+      letter.textContent = (img.alt || '?')[0];
+      img.replaceWith(letter);
+    }
+
     document.querySelectorAll('img.card-img').forEach(img => {
       img.addEventListener('load', () => checkShape(img));  // also runs after flipping a card
-      if (img.complete) checkShape(img);
+      if (img.classList.contains('card-back')) return;  // the card page handles a missing back itself
+      img.addEventListener('error', () => showLetter(img));
+      if (img.complete && img.naturalWidth === 0) {
+        showLetter(img);      // already failed before this script ran
+      } else if (img.complete) {
+        checkShape(img);
+      }
     });
   </script>
 

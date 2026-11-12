@@ -15,15 +15,18 @@
   <h1>Add a card</h1>
   <p class="card-meta">Can't find a card? Add it so the community can rate it.</p>
 
-  <form method="post" class="stack-form">
+  {% if error %}<p class="form-error">{{ error }}</p>{% endif %}
+
+  <!-- multipart/form-data lets the form send a photo file -->
+  <form method="post" class="stack-form" enctype="multipart/form-data">
     <label>Card name
-      <input type="text" name="name" required>
+      <input type="text" name="name" value="{{ request.form.get('name', '') }}" required>
     </label>
 
     <label>Category
       <select name="category" id="category" required>
         {% for cat in categories %}
-          <option value="{{ cat }}">{{ cat }}</option>
+          <option value="{{ cat }}" {% if request.form.get('category') == cat %}selected{% endif %}>{{ cat }}</option>
         {% endfor %}
       </select>
     </label>
@@ -38,12 +41,17 @@
     </label>
 
     <label>Set or year
-      <input type="text" name="set_or_year" placeholder="e.g. Base Set (1999)">
+      <input type="text" name="set_or_year" placeholder="e.g. Base Set (1999)" value="{{ request.form.get('set_or_year', '') }}">
+    </label>
+
+    <!-- optional: a picture of the card (great for sports cards) -->
+    <label>Photo of the card <span class="optional">(optional · JPG, PNG, WEBP, or GIF · up to 5 MB)</span>
+      <input type="file" name="photo" accept="image/jpeg,image/png,image/webp,image/gif">
     </label>
 
     <!-- jumbo cards are the big display cards -->
-    <label>Size
-      <select name="size">
+    <label id="size-field">Size
+      <select name="size" id="size">
         {% for sz in sizes %}
           <option value="{{ sz }}">{{ sz }}</option>
         {% endfor %}
@@ -59,6 +67,9 @@
   </form>
 </div>
 
+<!-- which sizes each category has, read by the script below -->
+<script type="application/json" id="size-data">{{ sizes_by_category | tojson }}</script>
+
 <script>
   // only show the Sport dropdown when Sports is picked
   const category = document.getElementById('category');
@@ -68,28 +79,56 @@
     sportField.style.display = category.value === 'Sports' ? '' : 'none';
   }
 
-  category.addEventListener('change', toggleSport);
+  // only show the sizes that fit the category: Magic gets Oversized, the rest get Jumbo
+  const sizeSelect = document.getElementById('size');
+  const sizesByCategory = JSON.parse(document.getElementById('size-data').textContent);
+
+  const sizeField = document.getElementById('size-field');
+
+  function showSizes() {
+    const allowed = sizesByCategory[category.value];
+    for (const option of sizeSelect.options) {
+      option.hidden = !allowed.includes(option.value);
+    }
+    if (!allowed.includes(sizeSelect.value)) {
+      sizeSelect.value = 'Standard';
+    }
+    // sports cards are always Standard, so hide the Size field
+    sizeField.style.display = allowed.length > 1 ? '' : 'none';
+  }
+
+  category.addEventListener('change', () => { toggleSport(); showSizes(); });
   toggleSport();
+  showSizes();
 </script>
 
 {% else %}
 
 <!-- card page -->
-<a href="{{ url_for('pages.browse', category=card.category) }}" class="back">← Back to {{ card.category }}</a>
+<a href="{{ back_url }}" class="back">← Back to {{ back_label }}</a>
 
-<div class="card-detail {% if card.size != 'Standard' %}jumbo{% endif %}">
+{# size class sets how big the card shows: size-standard, size-oversized, size-jumbo... #}
+<div class="card-detail size-{{ card.size | lower | replace(' ', '-') }}">
 
   <!-- card image, or its first letter if there isn't one -->
   <div class="card-picture">
     {% if card.image_url %}
-      <img class="card-img card-art-large zoomable" id="card-image" src="{{ card.image_url }}" alt="{{ card.name }}"
-           title="Click to enlarge">
+      <!-- click the card: cards with a back flip, other cards open big -->
+      <div class="flip-card {% if back_image %}two-sided{% endif %}" id="flip-card"
+           title="{% if back_image %}Click to flip{% else %}Click to enlarge{% endif %}">
+        <div class="flip-inner">
+          <img class="card-img card-art-large card-front" src="{{ card.image_url }}" alt="{{ card.name }}">
+          {% if back_image %}
+            <img class="card-img card-art-large card-back" src="{{ back_image }}" alt="{{ card.name }} (back)">
+          {% endif %}
+        </div>
+      </div>
 
-      <!-- double-sided cards get a flip button -->
-      {% if card.back_image_url %}
-        <button type="button" class="btn btn-secondary flip-btn" id="flip-btn"
-                data-front="{{ card.image_url }}" data-back="{{ card.back_image_url }}">↻ Flip card</button>
-      {% endif %}
+      <!-- Magic cards flip when clicked, so they enlarge with the button. other cards enlarge when clicked -->
+      <p class="card-meta flip-hint" id="flip-hint">
+        {% if back_image %}Click the card to flip it · use Enlarge to see it bigger{% else %}Click the card to enlarge it{% endif %}
+      </p>
+      <button type="button" class="btn btn-secondary enlarge-btn" id="enlarge-btn">🔍 Enlarge</button>
     {% else %}
       <div class="card-art card-art-large">{{ card.name[0] }}</div>
     {% endif %}
@@ -97,21 +136,26 @@
 
   <div class="card-info">
     <span class="badge">{{ card.subcategory or card.category }}</span>
-    <span class="badge">{{ card.size }}</span>
+    {% if card.category != 'Sports' %}<span class="badge">{{ card.size }}</span>{% endif %}
     <h1>{{ card.name }}</h1>
 
     <!-- card details -->
     <dl class="details">
       <dt>Category</dt><dd>{{ card.category }}{% if card.subcategory %} · {{ card.subcategory }}{% endif %}</dd>
-      {% if card.set_or_year %}<dt>Set</dt><dd>{{ card.set_or_year }}</dd>{% endif %}
+      {% if set_text %}<dt>Set</dt><dd>{{ set_text }}</dd>{% endif %}
       {% for label, value in details %}
         <dt>{{ label }}</dt><dd>{{ value }}</dd>
       {% endfor %}
-      <!-- the card's size, and whether it's tournament legal -->
-      <dt>Size</dt><dd>{{ card.size }}: {{ size_info }}
-        {% if card.size != 'Standard' %}<br>Jumbo sizes vary, so measure before buying sleeves.{% endif %}</dd>
+      {# the card's size, what kind of big card (Magic), and whether it's tournament legal.
+         sports cards are all one size and aren't played in tournaments, so no size line #}
+      {% if card.category != 'Sports' %}
+        <dt>Size</dt><dd>{{ card.size }}{% if size_kind %} · {{ size_kind }}{% endif %} · {{ size_info }}</dd>
+      {% endif %}
     </dl>
-    {% if card.source == 'ai' %}
+    {% if card.source == 'cardsight' %}
+      <p class="card-meta details-note">Card info and picture from CardSight AI.{% if team_from_ai %}
+        Team and position from AI search, may contain mistakes.{% endif %}</p>
+    {% elif card.source == 'ai' %}
       <p class="card-meta details-note">Details from AI search. May contain mistakes.</p>
     {% endif %}
 
@@ -196,8 +240,8 @@
 </dialog>
 
 <script>
-  const cardImage = document.getElementById('card-image');
-  const flipButton = document.getElementById('flip-btn');
+  const flipCard = document.getElementById('flip-card');
+  const enlargeButton = document.getElementById('enlarge-btn');
   const zoomDialog = document.getElementById('zoom-dialog');
   const zoomImage = document.getElementById('zoom-image');
 
@@ -209,20 +253,39 @@
     star.addEventListener('click', () => { if (wasChecked) star.checked = false; });
   });
 
-  // flip between the front and back
-  if (flipButton) {
-    flipButton.addEventListener('click', () => {
-      const showingFront = cardImage.getAttribute('src') === flipButton.dataset.front;
-      cardImage.src = showingFront ? flipButton.dataset.back : flipButton.dataset.front;
-    });
+  // open the side you're looking at big, click anywhere to close
+  function enlarge() {
+    const showingBack = flipCard.classList.contains('flipped');
+    const picture = flipCard.querySelector(showingBack ? '.card-back' : '.card-front');
+    if (!picture) return;  // the picture didn't load, so there's nothing to enlarge
+    zoomImage.src = picture.src;
+    zoomDialog.showModal();
   }
 
-  // click the picture to see it big, click again to close
-  if (cardImage) {
-    cardImage.addEventListener('click', () => {
-      zoomImage.src = cardImage.src;
-      zoomDialog.showModal();
+  // if the back picture won't load, turn flipping off for this card instead of showing a broken image
+  function noBack() {
+    const back = flipCard.querySelector('.card-back');
+    if (back) back.remove();
+    flipCard.classList.remove('two-sided', 'flipped');
+    document.getElementById('flip-hint').textContent = 'Click the card to enlarge it';
+  }
+
+  if (flipCard) {
+    const back = flipCard.querySelector('.card-back');
+    if (back) {
+      back.addEventListener('error', noBack);
+      if (back.complete && back.naturalWidth === 0) noBack();
+    }
+
+    // click the card: cards with a back flip, others open big
+    flipCard.addEventListener('click', () => {
+      if (flipCard.classList.contains('two-sided')) {
+        flipCard.classList.toggle('flipped');
+      } else {
+        enlarge();
+      }
     });
+    enlargeButton.addEventListener('click', enlarge);
     zoomDialog.addEventListener('click', () => zoomDialog.close());
   }
 </script>

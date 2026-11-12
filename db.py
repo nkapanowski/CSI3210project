@@ -11,13 +11,28 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'topdeck.db')
 
 # category choices, and the subcategories for Sports
 CATEGORIES = ['Magic', 'Pokémon', 'Sports', 'Other']
-# card sizes. jumbo cards are big display cards (not tournament legal)
-SIZES = ['Standard', 'Jumbo']
+# card sizes. big cards are display cards (not tournament legal)
+SIZES = ['Standard', 'Oversized']  # TODO (Pokémon): add 'Modern Jumbo', 'Vintage Jumbo'
 
-# what each card page says about its size. jumbo sizes vary by product, so it's "about"
+# which sizes each category has: Magic's big cards are "Oversized".
+# sports cards are always Standard, so they get no size choice
+SIZES_BY_CATEGORY = {
+    'Magic': ['Standard', 'Oversized'],
+    'Pokémon': ['Standard'],  # TODO (Pokémon): add 'Modern Jumbo', 'Vintage Jumbo'
+    'Sports': ['Standard'],
+    'Other': ['Standard'],   
+}
+
+
+def sizes_for(category):
+    """The sizes for a category, or every size if there's no category (the "All" view)."""
+    return SIZES_BY_CATEGORY.get(category, SIZES)
+
+# whether each size is tournament legal, shown on the card page's Size line
 SIZE_INFO = {
-    'Standard': '2.5 × 3.5 in (63 × 88 mm) · the normal size, tournament legal',
-    'Jumbo': 'about 6 × 8 in · big promo card from collection boxes · display only, not tournament legal',
+    'Standard': 'Tournament legal',
+    'Oversized': 'Not tournament legal',
+    # TODO (Pokémon): add 'Modern Jumbo' and 'Vintage Jumbo' (both not tournament legal)
 }
 SPORTS = ['Baseball', 'Basketball', 'Football', 'Hockey', 'Soccer']
 

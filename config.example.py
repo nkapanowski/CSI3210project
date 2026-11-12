@@ -4,3 +4,4 @@ POSTHOG_API_KEY = 'phc_xxxxxxxxxxxxxxxxxxxx'
 POSTHOG_HOST = 'https://us.i.posthog.com'
 SECRET_KEY = 'change-me'  # used by Flask to keep users signed in
 ANTHROPIC_API_KEY = 'sk-xxxxxxxxxxxxxxxxxxxx'
+CARDSIGHT_API_KEY = ''  # optional: free key from cardsight.ai for sports card pictures
